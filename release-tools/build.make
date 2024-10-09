@@ -62,9 +62,9 @@ IMAGE_NAME=$(REGISTRY_NAME)/$*
 
 ifdef V
 # Adding "-alsologtostderr" assumes that all test binaries contain glog. This is not guaranteed.
-TESTARGS = -v -args -alsologtostderr -v 5
+TESTARGS = -race -v -args -alsologtostderr -v 5
 else
-TESTARGS =
+TESTARGS = -race
 endif
 
 # Specific packages can be excluded from each of the tests below by setting the *_FILTER_CMD variables
@@ -148,7 +148,7 @@ DOCKER_BUILDX_CREATE_ARGS ?=
 $(CMDS:%=push-multiarch-%): push-multiarch-%: check-pull-base-ref build-%
 	set -ex; \
 	export DOCKER_CLI_EXPERIMENTAL=enabled; \
-	docker buildx create $(DOCKER_BUILDX_CREATE_ARGS) --use --name multiarchimage-buildertest; \
+	docker buildx create $(DOCKER_BUILDX_CREATE_ARGS) --use --name multiarchimage-buildertest --driver-opt image=moby/buildkit:v0.10.6; \
 	trap "docker buildx rm multiarchimage-buildertest" EXIT; \
 	dockerfile_linux=$$(if [ -e ./$(CMDS_DIR)/$*/Dockerfile ]; then echo ./$(CMDS_DIR)/$*/Dockerfile; else echo Dockerfile; fi); \
 	dockerfile_windows=$$(if [ -e ./$(CMDS_DIR)/$*/Dockerfile.Windows ]; then echo ./$(CMDS_DIR)/$*/Dockerfile.Windows; else echo Dockerfile.Windows; fi); \
@@ -322,3 +322,10 @@ test-spelling:
 test-boilerplate:
 	@ echo; echo "### $@:"
 	@ ./release-tools/verify-boilerplate.sh "$(pwd)"
+
+# Test klog usage. This test is optional and must be explicitly added to `test` target in the main Makefile:
+# test: test-logcheck
+.PHONY: test-logcheck
+test-logcheck:
+	@ echo; echo "### $@:"
+	@ ./release-tools/verify-logcheck.sh
